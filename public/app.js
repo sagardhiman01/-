@@ -2,7 +2,7 @@
 // StockBot Pro v2 - Full Intelligence Frontend
 // ═══════════════════════════════════════════════════
 
-const API = '';
+const API = window.location.origin; // Automatically gets current domain (localhost or render url)
 let currentReport = null;
 let allStocks = [];
 let intelData = null;
