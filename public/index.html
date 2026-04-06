@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StockBot Pro v2 | AI Trading Intelligence System</title>
+    <title>StockBot Pro v3 | Global AI Trading Intelligence</title>
     <meta name="description" content="Advanced AI-powered stock market trading system with deep analysis, news sentiment, insider detection, global monitoring and daily reports.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,7 +19,7 @@
                 <div class="pulse-ring"></div>
                 <div class="logo-icon">📊</div>
             </div>
-            <h1 class="loading-title">StockBot Pro v2</h1>
+            <h1 class="loading-title">StockBot Pro v3</h1>
             <p class="loading-subtitle">AI Trading Intelligence Engine Loading...</p>
             <div class="loading-bar"><div class="loading-bar-fill"></div></div>
         </div>
@@ -32,7 +32,7 @@
             <div class="sidebar-header">
                 <div class="logo">
                     <span class="logo-icon">📊</span>
-                    <span class="logo-text">StockBot <span class="pro-badge">PRO v2</span></span>
+                    <span class="logo-text">StockBot <span class="pro-badge">PRO v3</span></span>
                 </div>
             </div>
             <nav class="sidebar-nav">
@@ -84,7 +84,7 @@
                     </div>
                     <div class="search-box" id="search-container">
                         <span class="search-icon">🔍</span>
-                        <input type="text" class="search-input" placeholder="Search stock..." id="stock-search">
+                        <input type="text" class="search-input" placeholder="Search any stock worldwide... (AAPL, TSLA, RELIANCE)" id="stock-search">
                         <div class="search-results" id="search-results"></div>
                     </div>
                     <div class="header-time" id="header-time"></div>
@@ -251,12 +251,14 @@
                         <div class="section-header"><h2>🔍 Deep Stock Analysis</h2></div>
                         <div class="analyze-form">
                             <div class="input-group">
-                                <input type="text" id="analyze-symbol" class="input-field" placeholder="Stock symbol (RELIANCE, TCS...)">
+                                <input type="text" id="analyze-symbol" class="input-field" placeholder="Any stock: AAPL, TSLA, RELIANCE, 7203.T (Toyota), VOD.L (Vodafone)">
                                 <select id="analyze-period" class="input-field input-select">
+                                    <option value="1mo">1 Month</option>
                                     <option value="3mo">3 Months</option>
                                     <option value="6mo" selected>6 Months</option>
                                     <option value="1y">1 Year</option>
                                     <option value="2y">2 Years</option>
+                                    <option value="5y">5 Years</option>
                                 </select>
                                 <button class="action-btn action-primary" id="btn-analyze">🔍 Deep Analyze</button>
                             </div>

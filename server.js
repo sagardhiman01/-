@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const cron = require('node-cron');
-const { analyzeStock, generateDailyReport, fetchStockData, getTopNiftyStocks } = require('./analysis-engine');
+const { analyzeStock, generateDailyReport, fetchStockData, getTopNiftyStocks, searchStocksGlobal, fetchFundamentals } = require('./analysis-engine');
 const {
     fetchAllNews, fetchStockSpecificNews, analyzeAllNewsSentiment, analyzeSentiment,
     detectInsiderActivity, detectPumpAndDump, checkGlobalMarkets,
@@ -121,12 +121,47 @@ app.get('/api/watchlist', async (req, res) => {
 
 app.get('/api/search/:query', async (req, res) => {
     try {
-        const query = req.params.query.toUpperCase();
+        const query = req.params.query;
+        // Search globally via Yahoo Finance
+        const globalResults = await searchStocksGlobal(query);
+        // Also search local watchlist
         const allStocks = getTopNiftyStocks();
-        const filtered = allStocks.filter(s =>
-            s.symbol.includes(query) || s.name.toUpperCase().includes(query)
-        );
-        res.json({ success: true, data: filtered });
+        const localFiltered = allStocks.filter(s =>
+            s.symbol.toUpperCase().includes(query.toUpperCase()) || s.name.toUpperCase().includes(query.toUpperCase())
+        ).map(s => ({ symbol: s.symbol, name: s.name, type: 'EQUITY', exchange: 'NSE', sector: s.sector, country: '🇮🇳 India' }));
+        // Merge: local first, then global (avoid duplicates)
+        const seenSymbols = new Set(localFiltered.map(s => s.symbol));
+        const merged = [...localFiltered, ...globalResults.filter(g => !seenSymbols.has(g.symbol))];
+        res.json({ success: true, data: merged.slice(0, 15) });
+    } catch (err) {
+        res.json({ success: false, error: err.message });
+    }
+});
+
+// Global stock search
+app.get('/api/search-global/:query', async (req, res) => {
+    try {
+        const results = await searchStocksGlobal(req.params.query);
+        res.json({ success: true, data: results });
+    } catch (err) {
+        res.json({ success: false, error: err.message });
+    }
+});
+
+// Fundamental analysis
+app.get('/api/fundamentals/:symbol', async (req, res) => {
+    try {
+        let symbol = req.params.symbol;
+        // Try with .NS first if no suffix
+        if (!symbol.includes('.') && !symbol.includes('-')) {
+            const data = await fetchFundamentals(symbol + '.NS');
+            if (data) return res.json({ success: true, data });
+            // Fallback to raw symbol
+            const data2 = await fetchFundamentals(symbol);
+            return res.json({ success: data2 ? true : false, data: data2, error: data2 ? undefined : 'No fundamental data available' });
+        }
+        const data = await fetchFundamentals(symbol);
+        res.json({ success: data ? true : false, data, error: data ? undefined : 'No fundamental data available' });
     } catch (err) {
         res.json({ success: false, error: err.message });
     }
@@ -340,17 +375,18 @@ cron.schedule('*/30 * * * 1-5', async () => {
 
 app.listen(PORT, () => {
     console.log(`\n🚀 ═══════════════════════════════════════════════════════════`);
-    console.log(`   StockBot Pro v2.0 - AI Trading Intelligence System`);
+    console.log(`   StockBot Pro v3.0 - AI Trading Intelligence System`);
     console.log(`   Server running at: http://localhost:${PORT}`);
     console.log(`   ─────────────────────────────────────────────────────────`);
-    console.log(`   📊 Technical Analysis    : 12+ Indicators`);
+    console.log(`   🌍 Global Stock Search   : Any stock, any country`);
+    console.log(`   📊 Technical Analysis    : 12+ Indicators, 5yr data`);
+    console.log(`   📈 Fundamental Analysis  : P/E, EPS, Revenue, Margins`);
+    console.log(`   🕯️ Candlestick Charts    : OHLC visual patterns`);
     console.log(`   📰 News Sentiment        : Real-time monitoring`);
     console.log(`   🌍 Global Markets        : 11 indices tracked`);
     console.log(`   🕵️ Insider Detection     : Unusual pattern alerts`);
     console.log(`   🎭 Manipulation Detect   : Pump & Dump scanner`);
     console.log(`   🏛️ Govt Policy Tracker   : RBI, SEBI, Budget alerts`);
     console.log(`   🦢 Black Swan Monitor    : Crisis event detection`);
-    console.log(`   ⏰ Auto Reports          : 9 AM & 4 PM IST`);
-    console.log(`   📰 News Auto-Check       : Every 30 mins (market hrs)`);
     console.log(`═══════════════════════════════════════════════════════════════\n`);
 });

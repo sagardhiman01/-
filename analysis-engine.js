@@ -660,15 +660,29 @@ function generateTodayAction(action, confidence, prediction) {
 // MAIN ANALYSIS FUNCTION
 // ═══════════════════════════════════════════
 async function analyzeStock(symbol, period = '6mo') {
-    // Add .NS suffix if not present for NSE stocks
+    // Smart symbol resolution - support global stocks
     let fullSymbol = symbol;
-    if (!symbol.includes('.')) {
+    if (!symbol.includes('.') && !symbol.includes('-') && !symbol.includes('=')) {
+        // Try NSE first, fallback to raw symbol (for US stocks like AAPL, TSLA)
         fullSymbol = symbol + '.NS';
     }
 
     console.log(`📊 Analyzing ${fullSymbol}...`);
 
-    const stockData = await fetchStockData(fullSymbol, period);
+    let stockData;
+    try {
+        stockData = await fetchStockData(fullSymbol, period);
+    } catch (e) {
+        // If .NS fails, try without suffix (for US/global stocks)
+        if (fullSymbol.endsWith('.NS')) {
+            console.log(`  ↻ Trying ${symbol} without .NS suffix...`);
+            fullSymbol = symbol;
+            stockData = await fetchStockData(fullSymbol, period);
+        } else {
+            throw e;
+        }
+    }
+
     if (!stockData.data || stockData.data.length < 20) {
         throw new Error(`Not enough data for ${fullSymbol}. Got ${stockData.data?.length || 0} data points.`);
     }
@@ -690,8 +704,15 @@ async function analyzeStock(symbol, period = '6mo') {
     const dayChange = parseFloat((latestData.close - prevData.close).toFixed(2));
     const dayChangePct = parseFloat(((dayChange / prevData.close) * 100).toFixed(2));
 
+    // How many candles to return based on period
+    let historyLimit = 60;
+    if (period === '1y') historyLimit = 252;
+    else if (period === '2y') historyLimit = 504;
+    else if (period === '5y') historyLimit = 1260;
+    else if (period === '3mo') historyLimit = 63;
+
     return {
-        symbol: fullSymbol.replace('.NS', ''),
+        symbol: fullSymbol.replace('.NS', '').replace('.BO', ''),
         fullSymbol,
         name: stockInfo.name,
         sector: stockInfo.sector,
@@ -709,8 +730,294 @@ async function analyzeStock(symbol, period = '6mo') {
         volumeAnalysis,
         prediction,
         recommendation,
-        priceHistory: stockData.data.slice(-60) // Last 60 days for chart
+        priceHistory: stockData.data.slice(-historyLimit)
     };
+}
+
+// ═══════════════════════════════════════════
+// 🔍 GLOBAL STOCK SEARCH (Any Country)
+// ═══════════════════════════════════════════
+async function searchStocksGlobal(query) {
+    try {
+        const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=15&newsCount=0&listsCount=0&enableFuzzyQuery=true&quotesQueryId=tss_match_phrase_query`;
+        const response = await axios.get(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+            timeout: 10000
+        });
+
+        const quotes = response.data.quotes || [];
+        return quotes
+            .filter(q => q.quoteType === 'EQUITY' || q.quoteType === 'ETF' || q.quoteType === 'INDEX' || q.quoteType === 'CRYPTOCURRENCY')
+            .map(q => ({
+                symbol: q.symbol,
+                name: q.shortname || q.longname || q.symbol,
+                type: q.quoteType,
+                exchange: q.exchDisp || q.exchange || '',
+                sector: q.sector || q.industry || q.quoteType,
+                country: getCountryFromExchange(q.exchange)
+            }))
+            .slice(0, 12);
+    } catch (err) {
+        console.log('Search failed:', err.message);
+        return [];
+    }
+}
+
+function getCountryFromExchange(exchange) {
+    const map = {
+        'NSI': '🇮🇳 India', 'NSE': '🇮🇳 India', 'BOM': '🇮🇳 India', 'BSE': '🇮🇳 India',
+        'NMS': '🇺🇸 USA', 'NYQ': '🇺🇸 USA', 'NGM': '🇺🇸 USA', 'PCX': '🇺🇸 USA', 'NAS': '🇺🇸 USA',
+        'LSE': '🇬🇧 UK', 'LON': '🇬🇧 UK',
+        'TYO': '🇯🇵 Japan', 'JPX': '🇯🇵 Japan',
+        'HKG': '🇭🇰 Hong Kong', 'SHH': '🇨🇳 China', 'SHZ': '🇨🇳 China',
+        'GER': '🇩🇪 Germany', 'FRA': '🇩🇪 Germany',
+        'PAR': '🇫🇷 France', 'AMS': '🇳🇱 Netherlands',
+        'TOR': '🇨🇦 Canada', 'TSX': '🇨🇦 Canada',
+        'ASX': '🇦🇺 Australia', 'SGX': '🇸🇬 Singapore',
+        'KSC': '🇰🇷 South Korea', 'KRX': '🇰🇷 South Korea',
+        'SAO': '🇧🇷 Brazil', 'TAI': '🇹🇼 Taiwan',
+        'CCC': '🌐 Crypto'
+    };
+    return map[exchange] || '🌍 Global';
+}
+
+// ═══════════════════════════════════════════
+// 📊 FUNDAMENTAL ANALYSIS (Company Financials)
+// ═══════════════════════════════════════════
+async function fetchFundamentals(symbol) {
+    try {
+        const modules = 'summaryProfile,financialData,defaultKeyStatistics,incomeStatementHistory,balanceSheetHistory,cashflowStatementHistory,earningsHistory,earningsTrend,recommendationTrend';
+        const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}`;
+        
+        const response = await axios.get(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+            timeout: 15000
+        });
+
+        const result = response.data.quoteSummary.result[0];
+        const profile = result.summaryProfile || {};
+        const financial = result.financialData || {};
+        const keyStats = result.defaultKeyStatistics || {};
+        const incomeHistory = result.incomeStatementHistory?.incomeStatementHistory || [];
+        const balanceHistory = result.balanceSheetHistory?.balanceSheetStatements || [];
+        const cashflow = result.cashflowStatementHistory?.cashflowStatements || [];
+        const earnings = result.earningsHistory?.history || [];
+        const earningsTrend = result.earningsTrend?.trend || [];
+        const recTrend = result.recommendationTrend?.trend || [];
+
+        // Extract key stats
+        const getVal = (obj) => {
+            if (!obj) return null;
+            return obj.raw || obj.fmt || null;
+        };
+
+        // Company Profile
+        const companyProfile = {
+            sector: profile.sector || 'N/A',
+            industry: profile.industry || 'N/A',
+            country: profile.country || 'N/A',
+            employees: getVal(profile.fullTimeEmployees) || 'N/A',
+            website: profile.website || 'N/A',
+            description: profile.longBusinessSummary || 'N/A'
+        };
+
+        // Key Financial Ratios
+        const financialRatios = {
+            marketCap: getVal(financial.marketCap) || getVal(keyStats.marketCap),
+            marketCapFmt: financial.marketCap?.fmt || keyStats.marketCap?.fmt || 'N/A',
+            peRatio: getVal(keyStats.forwardPE) || getVal(keyStats.trailingPE),
+            peRatioFmt: keyStats.forwardPE?.fmt || keyStats.trailingPE?.fmt || 'N/A',
+            trailingPE: getVal(keyStats.trailingPE),
+            forwardPE: getVal(keyStats.forwardPE),
+            pegRatio: getVal(keyStats.pegRatio),
+            eps: getVal(keyStats.trailingEps),
+            epsFmt: keyStats.trailingEps?.fmt || 'N/A',
+            bookValue: getVal(keyStats.bookValue),
+            priceToBook: getVal(keyStats.priceToBook),
+            priceToSales: getVal(keyStats.priceToSalesTrailing12Months),
+            dividendYield: keyStats.dividendYield ? (getVal(keyStats.dividendYield) * 100).toFixed(2) + '%' : 'N/A',
+            dividendRate: getVal(keyStats.dividendRate),
+            beta: getVal(keyStats.beta),
+            '52weekHigh': getVal(keyStats['52WeekChange']),
+            sharesOutstanding: getVal(keyStats.sharesOutstanding),
+            sharesOutstandingFmt: keyStats.sharesOutstanding?.fmt || 'N/A',
+            floatShares: getVal(keyStats.floatShares),
+            shortRatio: getVal(keyStats.shortRatio),
+            enterpriseValue: keyStats.enterpriseValue?.fmt || 'N/A',
+            evToRevenue: getVal(keyStats.enterpriseToRevenue),
+            evToEbitda: getVal(keyStats.enterpriseToEbitda),
+        };
+
+        // Profitability
+        const profitability = {
+            profitMargin: financial.profitMargins?.fmt || 'N/A',
+            operatingMargin: financial.operatingMargins?.fmt || 'N/A',
+            grossMargin: financial.grossMargins?.fmt || 'N/A',
+            ebitdaMargin: financial.ebitdaMargins?.fmt || 'N/A',
+            returnOnEquity: financial.returnOnEquity?.fmt || 'N/A',
+            returnOnAssets: financial.returnOnAssets?.fmt || 'N/A',
+            revenueGrowth: financial.revenueGrowth?.fmt || 'N/A',
+            earningsGrowth: financial.earningsGrowth?.fmt || 'N/A',
+            totalRevenue: financial.totalRevenue?.fmt || 'N/A',
+            totalRevenueRaw: getVal(financial.totalRevenue),
+            ebitda: financial.ebitda?.fmt || 'N/A',
+            totalCash: financial.totalCash?.fmt || 'N/A',
+            totalDebt: financial.totalDebt?.fmt || 'N/A',
+            debtToEquity: financial.debtToEquity?.fmt || 'N/A',
+            currentRatio: financial.currentRatio?.fmt || 'N/A',
+            quickRatio: financial.quickRatio?.fmt || 'N/A',
+            freeCashflow: financial.freeCashflow?.fmt || 'N/A',
+            operatingCashflow: financial.operatingCashflow?.fmt || 'N/A',
+        };
+
+        // Income Statement Trends (last 4 years)
+        const incomeStatement = incomeHistory.slice(0, 4).map(stmt => ({
+            date: stmt.endDate?.fmt || 'N/A',
+            totalRevenue: stmt.totalRevenue?.fmt || 'N/A',
+            totalRevenueRaw: getVal(stmt.totalRevenue),
+            grossProfit: stmt.grossProfit?.fmt || 'N/A',
+            operatingIncome: stmt.operatingIncome?.fmt || 'N/A',
+            netIncome: stmt.netIncome?.fmt || 'N/A',
+            netIncomeRaw: getVal(stmt.netIncome),
+            ebit: stmt.ebit?.fmt || 'N/A',
+        }));
+
+        // Balance Sheet
+        const balanceSheet = balanceHistory.slice(0, 2).map(bs => ({
+            date: bs.endDate?.fmt || 'N/A',
+            totalAssets: bs.totalAssets?.fmt || 'N/A',
+            totalLiabilities: bs.totalLiab?.fmt || 'N/A',
+            totalEquity: bs.totalStockholderEquity?.fmt || 'N/A',
+            cash: bs.cash?.fmt || 'N/A',
+            totalDebt: bs.longTermDebt?.fmt || 'N/A',
+        }));
+
+        // Cash Flow
+        const cashFlows = cashflow.slice(0, 2).map(cf => ({
+            date: cf.endDate?.fmt || 'N/A',
+            operatingCashflow: cf.totalCashFromOperatingActivities?.fmt || 'N/A',
+            capitalExpenditure: cf.capitalExpenditures?.fmt || 'N/A',
+            freeCashflow: cf.freeCashflow?.fmt || cf.totalCashFromOperatingActivities?.fmt || 'N/A',
+        }));
+
+        // Analyst Recommendations
+        const analystRec = recTrend.length > 0 ? recTrend[0] : null;
+        const recommendations = analystRec ? {
+            strongBuy: analystRec.strongBuy || 0,
+            buy: analystRec.buy || 0,
+            hold: analystRec.hold || 0,
+            sell: analystRec.sell || 0,
+            strongSell: analystRec.strongSell || 0,
+            period: analystRec.period || 'current'
+        } : null;
+
+        // Target price
+        const targetPrices = {
+            current: financial.currentPrice?.fmt || 'N/A',
+            targetHigh: financial.targetHighPrice?.fmt || 'N/A',
+            targetLow: financial.targetLowPrice?.fmt || 'N/A',
+            targetMean: financial.targetMeanPrice?.fmt || 'N/A',
+            targetMedian: financial.targetMedianPrice?.fmt || 'N/A',
+            recommendation: financial.recommendationKey || 'N/A',
+            numberOfAnalysts: financial.numberOfAnalystOpinions?.fmt || 'N/A',
+        };
+
+        // Health Score
+        const healthScore = calculateHealthScore(financialRatios, profitability);
+
+        return {
+            companyProfile,
+            financialRatios,
+            profitability,
+            incomeStatement,
+            balanceSheet,
+            cashFlows,
+            analystRecommendations: recommendations,
+            targetPrices,
+            healthScore,
+            fetchedAt: new Date().toISOString()
+        };
+
+    } catch (err) {
+        console.log(`Fundamentals fetch failed for ${symbol}:`, err.message);
+        return null;
+    }
+}
+
+function calculateHealthScore(ratios, profits) {
+    let score = 0;
+    let maxScore = 0;
+    const factors = [];
+
+    // P/E Ratio analysis
+    if (ratios.trailingPE) {
+        maxScore += 15;
+        if (ratios.trailingPE < 15) { score += 15; factors.push({ name: 'P/E Ratio', status: 'EXCELLENT', detail: `${ratios.trailingPE.toFixed(1)} - Undervalued` }); }
+        else if (ratios.trailingPE < 25) { score += 10; factors.push({ name: 'P/E Ratio', status: 'GOOD', detail: `${ratios.trailingPE.toFixed(1)} - Fair` }); }
+        else if (ratios.trailingPE < 40) { score += 5; factors.push({ name: 'P/E Ratio', status: 'MODERATE', detail: `${ratios.trailingPE.toFixed(1)} - Expensive` }); }
+        else { score += 0; factors.push({ name: 'P/E Ratio', status: 'POOR', detail: `${ratios.trailingPE.toFixed(1)} - Very Expensive` }); }
+    }
+
+    // EPS
+    if (ratios.eps && ratios.eps > 0) {
+        maxScore += 10;
+        score += 10;
+        factors.push({ name: 'Earnings (EPS)', status: 'GOOD', detail: `₹${ratios.eps} - Profitable` });
+    } else if (ratios.eps) {
+        maxScore += 10;
+        factors.push({ name: 'Earnings (EPS)', status: 'POOR', detail: `₹${ratios.eps} - Loss making` });
+    }
+
+    // Revenue Growth
+    if (profits.revenueGrowth && profits.revenueGrowth !== 'N/A') {
+        maxScore += 15;
+        const growth = parseFloat(profits.revenueGrowth);
+        if (growth > 0.15) { score += 15; factors.push({ name: 'Revenue Growth', status: 'EXCELLENT', detail: profits.revenueGrowth }); }
+        else if (growth > 0.05) { score += 10; factors.push({ name: 'Revenue Growth', status: 'GOOD', detail: profits.revenueGrowth }); }
+        else if (growth > 0) { score += 5; factors.push({ name: 'Revenue Growth', status: 'MODERATE', detail: profits.revenueGrowth }); }
+        else { factors.push({ name: 'Revenue Growth', status: 'POOR', detail: profits.revenueGrowth }); }
+    }
+
+    // Profit Margin
+    if (profits.profitMargin && profits.profitMargin !== 'N/A') {
+        maxScore += 10;
+        const margin = parseFloat(profits.profitMargin);
+        if (margin > 0.2) { score += 10; factors.push({ name: 'Profit Margin', status: 'EXCELLENT', detail: profits.profitMargin }); }
+        else if (margin > 0.1) { score += 7; factors.push({ name: 'Profit Margin', status: 'GOOD', detail: profits.profitMargin }); }
+        else if (margin > 0) { score += 3; factors.push({ name: 'Profit Margin', status: 'MODERATE', detail: profits.profitMargin }); }
+        else { factors.push({ name: 'Profit Margin', status: 'POOR', detail: profits.profitMargin }); }
+    }
+
+    // ROE
+    if (profits.returnOnEquity && profits.returnOnEquity !== 'N/A') {
+        maxScore += 10;
+        const roe = parseFloat(profits.returnOnEquity);
+        if (roe > 0.15) { score += 10; factors.push({ name: 'Return on Equity', status: 'EXCELLENT', detail: profits.returnOnEquity }); }
+        else if (roe > 0.1) { score += 7; factors.push({ name: 'Return on Equity', status: 'GOOD', detail: profits.returnOnEquity }); }
+        else { score += 3; factors.push({ name: 'Return on Equity', status: 'MODERATE', detail: profits.returnOnEquity }); }
+    }
+
+    // Debt to Equity
+    if (profits.debtToEquity && profits.debtToEquity !== 'N/A') {
+        maxScore += 10;
+        const de = parseFloat(profits.debtToEquity);
+        if (de < 50) { score += 10; factors.push({ name: 'Debt/Equity', status: 'EXCELLENT', detail: profits.debtToEquity + ' - Low debt' }); }
+        else if (de < 100) { score += 7; factors.push({ name: 'Debt/Equity', status: 'GOOD', detail: profits.debtToEquity }); }
+        else if (de < 200) { score += 3; factors.push({ name: 'Debt/Equity', status: 'MODERATE', detail: profits.debtToEquity + ' - High debt' }); }
+        else { factors.push({ name: 'Debt/Equity', status: 'POOR', detail: profits.debtToEquity + ' - Very high debt!' }); }
+    }
+
+    const pct = maxScore > 0 ? Math.round((score / maxScore) * 100) : 50;
+    let grade = 'C';
+    if (pct >= 80) grade = 'A+';
+    else if (pct >= 70) grade = 'A';
+    else if (pct >= 60) grade = 'B+';
+    else if (pct >= 50) grade = 'B';
+    else if (pct >= 40) grade = 'C+';
+    else if (pct >= 30) grade = 'C';
+    else grade = 'D';
+
+    return { score: pct, grade, factors, maxPoints: maxScore, earnedPoints: score };
 }
 
 // ═══════════════════════════════════════════
@@ -781,4 +1088,4 @@ async function generateDailyReport() {
     return report;
 }
 
-module.exports = { analyzeStock, generateDailyReport, fetchStockData, getTopNiftyStocks };
+module.exports = { analyzeStock, generateDailyReport, fetchStockData, getTopNiftyStocks, searchStocksGlobal, fetchFundamentals };
