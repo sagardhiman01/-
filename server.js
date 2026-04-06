@@ -7,6 +7,7 @@ const {
     detectInsiderActivity, detectPumpAndDump, checkGlobalMarkets,
     checkGovtPolicyNews, calculateOverallRisk
 } = require('./news-engine');
+const { executeTrade, getPortfolioState } = require('./paper-trade');
 
 const app = express();
 const PORT = 4000;
@@ -236,6 +237,31 @@ app.get('/api/risk-assessment', async (req, res) => {
     } catch (err) {
         console.error('Risk assessment error:', err.message);
         res.json({ success: false, error: err.message });
+    }
+});
+
+// ═══════════════════════════════════════════
+// 💸 VIRTUAL / PAPER TRADING APIs
+// ═══════════════════════════════════════════
+
+app.get('/api/portfolio', async (req, res) => {
+    try {
+        const state = await getPortfolioState();
+        res.json({ success: true, data: state });
+    } catch (error) {
+        console.error("Portfolio Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+app.post('/api/trade', async (req, res) => {
+    try {
+        const { symbol, action, quantity, type, price } = req.body;
+        const result = await executeTrade(symbol, action, quantity, type, price);
+        res.json(result);
+    } catch (error) {
+        console.error("Trade Error:", error);
+        res.status(400).json({ success: false, message: error.message });
     }
 });
 

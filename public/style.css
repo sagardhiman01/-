@@ -1953,3 +1953,10 @@ body {
     .global-grid { grid-template-columns: 1fr; }
     .risk-indicator { display: none; }
 }
+
+.text-center { text-align: center; }
+
+.table-responsive { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.data-table th, .data-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+.data-table th { background: var(--bg-input); color: var(--text-secondary); font-weight: 500; }

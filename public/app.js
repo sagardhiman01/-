@@ -44,9 +44,14 @@ function switchPage(name) {
     if (navEl) navEl.classList.add('active');
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById(`page-${name}`).classList.add('active');
-    const titles = { dashboard:'Dashboard', intelligence:'🧠 Intelligence', news:'📰 News & Sentiment', global:'🌍 Global Markets', report:'📋 Daily Report', analyze:'🔍 Deep Analysis', watchlist:'⭐ Watchlist', signals:'🎯 Signals' };
+    const titles = { dashboard:'Dashboard', intelligence:'🧠 Intelligence', news:'📰 News & Sentiment', global:'🌍 Global Markets', report:'📋 Daily Report', analyze:'🔍 Deep Analysis', watchlist:'⭐ Watchlist', signals:'🎯 Signals', trading:'💸 Paper Trading' };
     document.getElementById('page-title').textContent = titles[name] || name;
     document.getElementById('sidebar').classList.remove('open');
+    
+    // Auto-load portfolio when entering Paper Trading page
+    if(name === 'trading') {
+        if(typeof loadPortfolio === 'function') loadPortfolio();
+    }
 }
 
 // ═══ GLOBAL SEARCH (Any stock, any country) ═══
@@ -98,6 +103,12 @@ function setupButtons() {
     document.getElementById('btn-analyze').addEventListener('click', () => { const s = document.getElementById('analyze-symbol').value.trim(); if(s) runAnalysis(s); else showToast('⚠️','Enter stock symbol'); });
     document.getElementById('btn-analyze-quick').addEventListener('click', () => { switchPage('analyze'); document.getElementById('analyze-symbol').focus(); });
     document.getElementById('analyze-symbol').addEventListener('keypress', (e) => { if(e.key==='Enter'){ const s=e.target.value.trim(); if(s) runAnalysis(s); }});
+
+    // Trade bindings
+    const btnTradeBuy = document.getElementById('btn-trade-buy');
+    if(btnTradeBuy) btnTradeBuy.addEventListener('click', () => handleTradeAction('BUY'));
+    const btnTradeSell = document.getElementById('btn-trade-sell');
+    if(btnTradeSell) btnTradeSell.addEventListener('click', () => handleTradeAction('SELL'));
 }
 
 // ═══ TIME & MARKET ═══
@@ -422,6 +433,19 @@ function renderAnalysis(data, fundamentals) {
     html += `<div class="section-card"><div class="section-header"><h2>🔮 Price Estimates</h2><span class="section-badge">Vol: ${data.prediction.volatility}%</span></div><div class="prediction-grid"><div class="prediction-card"><div class="prediction-period">1 Day</div><div class="prediction-target">${cur}${data.prediction.estimates['1day'].target}</div><div class="prediction-range">${cur}${data.prediction.estimates['1day'].range.low} - ${cur}${data.prediction.estimates['1day'].range.high}</div></div><div class="prediction-card"><div class="prediction-period">1 Week</div><div class="prediction-target">${cur}${data.prediction.estimates['1week'].target}</div><div class="prediction-range">${cur}${data.prediction.estimates['1week'].range.low} - ${cur}${data.prediction.estimates['1week'].range.high}</div></div><div class="prediction-card"><div class="prediction-period">1 Month</div><div class="prediction-target">${cur}${data.prediction.estimates['1month'].target}</div><div class="prediction-range">${cur}${data.prediction.estimates['1month'].range.low} - ${cur}${data.prediction.estimates['1month'].range.high}</div></div></div><div style="margin-top:12px;padding:10px;background:var(--bg-input);border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted)">⚠️ Disclaimer: Statistical estimates hain, guaranteed nahi.</div></div>`;
 
     result.innerHTML = html;
+    
+    // Update Trade Ticket
+    const ticket = document.getElementById('trade-ticket-container');
+    if(ticket) {
+        ticket.classList.remove('hidden');
+        document.getElementById('ticket-symbol').textContent = data.symbol;
+        document.getElementById('ticket-price').textContent = data.currentPrice.toFixed(2);
+        if(typeof currentTradeSymbol !== 'undefined') {
+            currentTradeSymbol = data.symbol;
+            currentTradePrice = data.currentPrice;
+        }
+    }
+
     drawCandlestickChart(data);
     drawChart(data);
 }

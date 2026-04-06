@@ -55,6 +55,9 @@
                 <button class="nav-item" data-page="analyze" id="nav-analyze">
                     <span class="nav-icon">🔍</span><span class="nav-text">Stock Analysis</span>
                 </button>
+                <button class="nav-item" data-page="trading" id="nav-trading" style="border-left: 3px solid var(--green); background: rgba(0,255,100,0.05)">
+                    <span class="nav-icon">💸</span><span class="nav-text" style="color: var(--green); font-weight:bold;">Paper Trading</span>
+                </button>
                 <button class="nav-item" data-page="watchlist" id="nav-watchlist">
                     <span class="nav-icon">⭐</span><span class="nav-text">Watchlist</span>
                 </button>
@@ -266,6 +269,24 @@
                         </div>
                     </div>
                     <div id="analysis-result" class="hidden"></div>
+                    
+                    <!-- Paper Trading Virtual Ticket -->
+                    <div id="trade-ticket-container" class="hidden section-card" style="border:1px solid #00E676; margin-top:20px">
+                        <div class="section-header">
+                            <h2><span style="font-size:24px">💸</span> Virtual Paper Trade (<span id="ticket-symbol">--</span>)</h2>
+                            <span class="section-badge" style="background:#00E676;color:#000;">Live Price: ₹<span id="ticket-price">0.00</span></span>
+                        </div>
+                        <div class="analyze-form" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+                            <input type="number" id="trade-qty" class="input-field" placeholder="Quantity (e.g. 10)" min="1" style="flex:1">
+                            <select id="trade-type" class="input-field input-select" style="flex:1">
+                                <option value="INTRADAY">Intraday (Same Day)</option>
+                                <option value="DELIVERY" selected>Delivery (Hold)</option>
+                            </select>
+                            <button class="action-btn" id="btn-trade-buy" style="background:var(--green);flex:1">BUY / LONG</button>
+                            <button class="action-btn" id="btn-trade-sell" style="background:var(--red);flex:1">SELL / SHORT</button>
+                        </div>
+                        <div id="trade-msg" style="margin-top:10px; font-weight:bold; font-size:14px;"></div>
+                    </div>
                 </div>
 
                 <!-- ═══ WATCHLIST ═══ -->
@@ -292,11 +313,87 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ═══ PAPER TRADING ═══ -->
+                <div class="page" id="page-trading">
+                    <div class="stats-grid" id="portfolio-stats">
+                        <div class="stat-card">
+                            <div class="stat-info">
+                                <span class="stat-value" id="port-balance">₹0.00</span>
+                                <span class="stat-label">Available Balance</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-info">
+                                <span class="stat-value" id="port-invested">₹0.00</span>
+                                <span class="stat-label">Invested Value</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-info">
+                                <span class="stat-value" id="port-current">₹0.00</span>
+                                <span class="stat-label">Current Value</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-info">
+                                <span class="stat-value" id="port-pnl">₹0.00</span>
+                                <span class="stat-label">Unrealized P&L</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header">
+                            <h2>🟢 Active Positions</h2>
+                            <button class="btn-small btn-primary" onclick="loadPortfolio()">🔄 Refresh</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Symbol</th>
+                                        <th>Type</th>
+                                        <th>Qty</th>
+                                        <th>Buy Price</th>
+                                        <th>Current Price</th>
+                                        <th>P&L</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="portfolio-positions">
+                                    <tr><td colspan="7" class="text-center">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header"><h2>📋 Trade History</h2></div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Symbol</th>
+                                        <th>Type</th>
+                                        <th>Qty</th>
+                                        <th>Buy Price</th>
+                                        <th>Sell Price</th>
+                                        <th>Realized P&L</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="portfolio-history">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
 
     <div class="toast-container" id="toast-container"></div>
+    <script src="trade.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
