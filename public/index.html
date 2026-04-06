@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockBot Pro v2 | AI Trading Intelligence System</title>
+    <meta name="description" content="Advanced AI-powered stock market trading system with deep analysis, news sentiment, insider detection, global monitoring and daily reports.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-logo">
+                <div class="pulse-ring"></div>
+                <div class="logo-icon">📊</div>
+            </div>
+            <h1 class="loading-title">StockBot Pro v2</h1>
+            <p class="loading-subtitle">AI Trading Intelligence Engine Loading...</p>
+            <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="app hidden">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">📊</span>
+                    <span class="logo-text">StockBot <span class="pro-badge">PRO v2</span></span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-page="dashboard" id="nav-dashboard">
+                    <span class="nav-icon">🏠</span><span class="nav-text">Dashboard</span>
+                </button>
+                <button class="nav-item" data-page="intelligence" id="nav-intelligence">
+                    <span class="nav-icon">🧠</span><span class="nav-text">Intelligence</span>
+                    <span class="nav-badge" id="risk-badge"></span>
+                </button>
+                <button class="nav-item" data-page="news" id="nav-news">
+                    <span class="nav-icon">📰</span><span class="nav-text">News & Sentiment</span>
+                </button>
+                <button class="nav-item" data-page="global" id="nav-global">
+                    <span class="nav-icon">🌍</span><span class="nav-text">Global Markets</span>
+                </button>
+                <button class="nav-item" data-page="report" id="nav-report">
+                    <span class="nav-icon">📋</span><span class="nav-text">Daily Report</span>
+                </button>
+                <button class="nav-item" data-page="analyze" id="nav-analyze">
+                    <span class="nav-icon">🔍</span><span class="nav-text">Stock Analysis</span>
+                </button>
+                <button class="nav-item" data-page="watchlist" id="nav-watchlist">
+                    <span class="nav-icon">⭐</span><span class="nav-text">Watchlist</span>
+                </button>
+                <button class="nav-item" data-page="signals" id="nav-signals">
+                    <span class="nav-icon">🎯</span><span class="nav-text">Buy/Sell Signals</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="market-status" id="market-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Checking...</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="main-header">
+                <div class="header-left">
+                    <button class="menu-toggle" id="menu-toggle">☰</button>
+                    <h1 class="page-title" id="page-title">Dashboard</h1>
+                </div>
+                <div class="header-right">
+                    <div class="risk-indicator" id="header-risk">
+                        <span class="risk-dot"></span>
+                        <span class="risk-text">Risk: --</span>
+                    </div>
+                    <div class="search-box" id="search-container">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" class="search-input" placeholder="Search stock..." id="stock-search">
+                        <div class="search-results" id="search-results"></div>
+                    </div>
+                    <div class="header-time" id="header-time"></div>
+                </div>
+            </header>
+
+            <div class="page-container">
+                <!-- ═══ DASHBOARD ═══ -->
+                <div class="page active" id="page-dashboard">
+                    <!-- Risk Alert Banner -->
+                    <div class="risk-banner hidden" id="risk-banner">
+                        <span class="risk-banner-icon">🚨</span>
+                        <span class="risk-banner-text" id="risk-banner-text"></span>
+                        <button class="risk-banner-btn" onclick="switchPage('intelligence')">View Details →</button>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card stat-buy">
+                            <div class="stat-icon">📈</div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="stat-buy">--</span>
+                                <span class="stat-label">Buy Signals</span>
+                            </div>
+                        </div>
+                        <div class="stat-card stat-sell">
+                            <div class="stat-icon">📉</div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="stat-sell">--</span>
+                                <span class="stat-label">Sell Signals</span>
+                            </div>
+                        </div>
+                        <div class="stat-card stat-hold">
+                            <div class="stat-icon">⏸️</div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="stat-hold">--</span>
+                                <span class="stat-label">Hold</span>
+                            </div>
+                        </div>
+                        <div class="stat-card stat-sentiment">
+                            <div class="stat-icon">🧠</div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="stat-risk-score">--</span>
+                                <span class="stat-label">Risk Score</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header"><h2>🚀 Quick Actions</h2></div>
+                        <div class="quick-actions">
+                            <button class="action-btn action-primary" id="btn-generate-report">
+                                <span class="action-icon">📋</span><span>Generate Report</span>
+                            </button>
+                            <button class="action-btn action-intel" id="btn-run-intel">
+                                <span class="action-icon">🧠</span><span>Run Intelligence Scan</span>
+                            </button>
+                            <button class="action-btn action-secondary" id="btn-analyze-quick">
+                                <span class="action-icon">🔍</span><span>Analyze Stock</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="section-card">
+                            <div class="section-header"><h2>🟢 Top Gainers</h2></div>
+                            <div class="stock-list" id="top-gainers">
+                                <div class="empty-state">Generate report to see data</div>
+                            </div>
+                        </div>
+                        <div class="section-card">
+                            <div class="section-header"><h2>🔴 Top Losers</h2></div>
+                            <div class="stock-list" id="top-losers">
+                                <div class="empty-state">Generate report to see data</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="section-header">
+                            <h2>🎯 Latest Recommendations</h2>
+                            <span class="section-badge" id="rec-date">Not generated</span>
+                        </div>
+                        <div class="recommendations-grid" id="recommendations-grid">
+                            <div class="empty-state">Click "Generate Report" for recommendations</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ INTELLIGENCE PAGE ═══ -->
+                <div class="page" id="page-intelligence">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <h2>🧠 Master Intelligence Report</h2>
+                            <button class="btn-small btn-primary" id="btn-refresh-intel">🔄 Refresh</button>
+                        </div>
+                        <div id="intel-content">
+                            <div class="empty-state-large">
+                                <div class="empty-icon">🧠</div>
+                                <h3>Intelligence Not Loaded</h3>
+                                <p>Click "Refresh" to scan news, global markets, govt policies & risk factors</p>
+                                <button class="action-btn action-intel" id="btn-first-intel">Run Intelligence Scan</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ NEWS PAGE ═══ -->
+                <div class="page" id="page-news">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <h2>📰 Live News & Sentiment Analysis</h2>
+                            <button class="btn-small btn-primary" id="btn-refresh-news">🔄 Refresh</button>
+                        </div>
+                        <div id="news-content">
+                            <div class="empty-state-large">
+                                <div class="empty-icon">📰</div>
+                                <h3>News Not Loaded</h3>
+                                <p>Click Refresh to fetch and analyze latest market news</p>
+                                <button class="action-btn action-primary" id="btn-first-news">Fetch News Now</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ GLOBAL MARKETS PAGE ═══ -->
+                <div class="page" id="page-global">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <h2>🌍 Global Markets & Risk Monitor</h2>
+                            <button class="btn-small btn-primary" id="btn-refresh-global">🔄 Refresh</button>
+                        </div>
+                        <div id="global-content">
+                            <div class="empty-state-large">
+                                <div class="empty-icon">🌍</div>
+                                <h3>Global Data Not Loaded</h3>
+                                <p>Click Refresh to check all global market indices, VIX, oil, gold & forex</p>
+                                <button class="action-btn action-primary" id="btn-first-global">Check Global Markets</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ DAILY REPORT ═══ -->
+                <div class="page" id="page-report">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <h2>📋 Daily Market Report</h2>
+                            <button class="btn-small btn-primary" id="btn-new-report">🔄 Generate</button>
+                        </div>
+                        <div id="report-content">
+                            <div class="empty-state-large">
+                                <div class="empty-icon">📊</div>
+                                <h3>No Report Yet</h3>
+                                <p>Click Generate to analyze top stocks</p>
+                                <button class="action-btn action-primary" id="btn-first-report">Generate Report</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ STOCK ANALYSIS ═══ -->
+                <div class="page" id="page-analyze">
+                    <div class="section-card">
+                        <div class="section-header"><h2>🔍 Deep Stock Analysis</h2></div>
+                        <div class="analyze-form">
+                            <div class="input-group">
+                                <input type="text" id="analyze-symbol" class="input-field" placeholder="Stock symbol (RELIANCE, TCS...)">
+                                <select id="analyze-period" class="input-field input-select">
+                                    <option value="3mo">3 Months</option>
+                                    <option value="6mo" selected>6 Months</option>
+                                    <option value="1y">1 Year</option>
+                                    <option value="2y">2 Years</option>
+                                </select>
+                                <button class="action-btn action-primary" id="btn-analyze">🔍 Deep Analyze</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="analysis-result" class="hidden"></div>
+                </div>
+
+                <!-- ═══ WATCHLIST ═══ -->
+                <div class="page" id="page-watchlist">
+                    <div class="section-card">
+                        <div class="section-header"><h2>⭐ Stock Universe (40+ Stocks)</h2></div>
+                        <div class="watchlist-grid" id="watchlist-grid"></div>
+                    </div>
+                </div>
+
+                <!-- ═══ SIGNALS ═══ -->
+                <div class="page" id="page-signals">
+                    <div class="section-card">
+                        <div class="section-header">
+                            <h2>🎯 Active Buy/Sell Signals</h2>
+                            <span class="section-badge" id="signals-date">--</span>
+                        </div>
+                        <div id="signals-content">
+                            <div class="empty-state-large">
+                                <div class="empty-icon">🎯</div>
+                                <h3>No Signals</h3>
+                                <p>Generate a daily report first</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+    <script src="app.js"></script>
+</body>
+</html>
