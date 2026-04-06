@@ -390,6 +390,13 @@ function renderAnalysis(data, fundamentals) {
         html += `<div class="section-card"><div class="section-header"><h2>📰 News Sentiment</h2><span class="section-badge">${data.newsAnalysis.overallSentiment}</span></div><div class="sentiment-summary"><div class="sentiment-stat"><div class="sentiment-stat-value" style="color:var(--green)">${data.newsAnalysis.bullishCount}</div><div class="sentiment-stat-label">Positive</div></div><div class="sentiment-stat"><div class="sentiment-stat-value" style="color:var(--red)">${data.newsAnalysis.bearishCount}</div><div class="sentiment-stat-label">Negative</div></div></div><div class="news-list">${data.newsAnalysis.allArticles.slice(0,8).map(a=>renderNewsCard(a)).join('')}</div></div>`;
     }
 
+    // 🧠 TRADING PSYCHOLOGY (80% OF TRADING)
+    if(data.tradingPsychology) {
+        const psy = data.tradingPsychology;
+        const pClass = psy.marketState.includes('Greed') ? 'extreme' : psy.marketState.includes('Fear') ? 'high' : 'safe';
+        html += `<div class="section-card" style="border:1px solid var(--accent-primary)"><div class="section-header"><h2 style="color:var(--accent-primary)">🧠 Trading Psychology & Discipline</h2><span class="section-badge ${pClass}">${psy.marketState}</span></div><div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">${psy.focus}</div><div class="signal-list" style="display:flex;flex-direction:column;gap:12px">${psy.tips.map(t=>`<div class="signal-item" style="padding:12px;background:var(--bg-card);border-left:4px solid var(--accent-primary);margin:0">${t}</div>`).join('')}</div></div>`;
+    }
+
     // ═══ CANDLESTICK CHART ═══
     html += `<div class="section-card"><div class="section-header"><h2>🕯️ Candlestick Chart</h2><span class="section-badge">${data.priceHistory?.length} candles</span></div><div class="chart-container" style="height:400px"><canvas id="candlestickChart"></canvas></div></div>`;
 

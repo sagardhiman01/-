@@ -709,7 +709,11 @@ async function analyzeStock(symbol, period = '6mo') {
     if (period === '1y') historyLimit = 252;
     else if (period === '2y') historyLimit = 504;
     else if (period === '5y') historyLimit = 1260;
+    else if (period === '10y') historyLimit = 2520;
     else if (period === '3mo') historyLimit = 63;
+    else if (period === '1mo') historyLimit = 21;
+
+    const tradingPsychology = analyzePsychology(indicators, dayChangePct);
 
     return {
         symbol: fullSymbol.replace('.NS', '').replace('.BO', ''),
@@ -730,7 +734,45 @@ async function analyzeStock(symbol, period = '6mo') {
         volumeAnalysis,
         prediction,
         recommendation,
+        tradingPsychology,
         priceHistory: stockData.data.slice(-historyLimit)
+    };
+}
+
+// ═══════════════════════════════════════════
+// 🧠 TRADING PSYCHOLOGY ENGINE (80% OF TRADING)
+// ═══════════════════════════════════════════
+function analyzePsychology(indicators, dayChangePct) {
+    const advice = [];
+    const rsi = indicators.rsi;
+    let state = "Neutral / Calm";
+
+    // Fear / Greed (FOMO / Panic) based on short-term factors
+    if (rsi > 70) {
+        state = "Extreme Greed / FOMO";
+        advice.push("🔥 FOMO (Fear Of Missing Out) Warning: Stock bohot tezi se upar gaya hai. Yahan lalach (Greed) mein aake top pe mat fasna. Patience rakho, pullback ka wait karo.");
+    } else if (rsi < 30) {
+        state = "Extreme Fear / Panic";
+        advice.push("🥶 Panic Warning: Market mein darr (Fear) ka mahaul hai. Panic sell mat karo, agar company ke fundamentals (P/E, ROI) strong hain to yeh discount pe buy karne ka mauka ho sakta hai.");
+    }
+
+    if (dayChangePct > 5) {
+        advice.push("🎢 Excitement Control: Aaj 5%+ ki tezi hai. Over-excited hoke high level pe extra quantity mat le lena. Apna risk limit cross mat karo.");
+    } else if (dayChangePct < -5) {
+        advice.push("🚫 Revenge Trading Warning: Aaj bada fall hua hai. Revenge trading (loss cover karne ki jaldi) mat karna. Emotionally market se mat lado, capital protect karo.");
+    }
+
+    if (advice.length === 0) {
+        advice.push("🧘 Discipline Check: Market dull/neutral hai. Boredom (boriyat) mein aa kar faltu trades mat lena. Perfect setup ka wait karna hi sabse badi psychology hai.");
+    }
+
+    // Core rule 80% game
+    advice.push("🧠 Golden Rule: Trading mein 80% game Psychology ka hota hai. Apna Stop-Loss hamesha system mein lagao (dimaag mein nahi), chota loss lo, aur profit ko baith kar enjoy karo.");
+
+    return {
+        focus: "TRADING PSYCHOLOGY = 80% GAME",
+        marketState: state,
+        tips: advice
     };
 }
 
